@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  password        String
+  roleId          String
+  role            Role     @relation(fields: [roleId], references: [id])
+  primaryOutletId String?
+  primaryOutlet   Outlet?  @relation(fields: [primaryOutletId], references: [id])
+  isActive        Boolean  @default(true)
+  outletAccess    UserOutletAccess[]
+  auditLogs       AuditLog[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  description String?
+  isSystem    Boolean      @default(false)
+  users       User[]
+  modules     RoleModule[]
+  permissions RolePermission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Module {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  displayName String
+  icon        String?
+  path        String?
+  permissions Permission[]
+  roles       RoleModule[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  moduleId    String
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  action      String
+  description String?
+  roles       RolePermission[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([moduleId, action])
+}
+
+model RoleModule {
+  roleId     String
+  moduleId   String
+  role       Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  module     Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  
+  @@id([roleId, moduleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@id([roleId, permissionId])
+}
+
+model Region {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  outlets   Outlet[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Outlet {
+  id         String   @id @default(cuid())
+  name       String
+  code       String   @unique
+  regionId   String?
+  region     Region?  @relation(fields: [regionId], references: [id])
+  address    String?
+  phone      String?
+  isActive   Boolean  @default(true)
+  users      User[]
+  userAccess UserOutletAccess[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model UserOutletAccess {
+  userId    String
+  outletId  String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outlet    Outlet @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@id([userId, outletId])
+}
+
+model InventoryItem {
+  id             String   @id @default(cuid())
+  name           String
+  category       String
+  baseUom        String
+  costPrice      Float
+  outletId       String
+  outlet         Outlet   @relation(fields: [outletId], references: [id])
+  quantityOnHand Float    @default(0)
+  reOrderLevel   Float    @default(0)
+  expiryDate     DateTime?
+  isActive       Boolean  @default(true)
+  adjustments    InventoryAdjustment[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([outletId, name])
+}
+
+model InventoryAdjustment {
+  id          String   @id @default(cuid())
+  inventoryId String
+  inventory   InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  adjustment  Float
+  reason      String
+  adjustedBy  String
+  createdAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  module    String
+  entityId  String?
+  details   Json?
+  createdAt DateTime @default(now())
+}
